@@ -54,16 +54,28 @@ fi
 
 printf "\n"
 
-for ((i=1; i <= $view_number; i++)); do
-  pct=$(( i*100 / $view_number ))
-
+worker() {
+  task_id="$1"
+  pct=$(( $task_id*100 / $view_number ))
   new_user_view_count_str=$(curl https://daramet.com/backbone/wapi.php -s \
     -X POST \
     --data-raw "{\"rule\":\"userdata\",\"user\":\"${username}\",\"action\":\"data\"}" | jq ".user_stats.views")
 
   new_user_view_count_int=${new_user_view_count_str//\"/}
-    
-  printf "\r  $IPurple [*] Viewing...  |  $new_user_view_count_int  | %3d%% (%d/%d) $Color_rst" "$pct" "$i" "$view_number"
-done
+
+  printf "\r  $IPurple [*] Viewing...  |  %s  | %3d%% (%d/%d) $Color_rst" \
+    "$new_user_view_count_int"  "$pct" "$task_id" "$view_number"
+}
+
+procs=10
+export -f worker
+export username view_number
+export IPurple Color_rst
+
+seq "$view_number" | xargs -P "$procs" -I{} bash -c 'worker "$@"' _ {}
+
+wait
+
+worker $view_number
 
 echo -e "\n\n  $BWhite [#]$White My work is done.$Color_rst\n";
